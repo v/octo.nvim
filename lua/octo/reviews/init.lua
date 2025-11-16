@@ -337,21 +337,97 @@ function Review:collect_submit_info()
 
   local conf = config.values
   local winid, bufnr = window.create_centered_float {
-    header = string.format(
-      "Press %s to approve, %s to comment or %s to request changes",
-      conf.mappings.submit_win.approve_review.lhs,
-      conf.mappings.submit_win.comment_review.lhs,
-      conf.mappings.submit_win.request_changes.lhs
-    ),
+    header = "Submit Review - Uncomment one action below",
   }
   vim.api.nvim_set_current_win(winid)
   vim.bo[bufnr].syntax = "octo"
-  utils.apply_mappings("submit_win", bufnr)
-  vim.cmd [[normal G]]
+  
+  -- Add action template at the bottom
+  local action_template = {
+    "",
+    "",
+    "-- Uncomment ONE of the following actions:",
+    "-- Action: Approve",
+    "-- Action: Comment",
+    "-- Action: Request Changes",
+  }
+  
+  vim.api.nvim_buf_set_lines(bufnr, -1, -1, false, action_template)
+  
+  -- Set up custom Enter keymap to parse and submit
+  vim.keymap.set("n", "<CR>", function()
+    self:submit_with_parsed_action()
+  end, { buffer = bufnr, silent = true, noremap = true, desc = "Submit review with parsed action" })
+  
+  -- Keep the close mapping
+  local close_mapping = conf.mappings.submit_win.close_review_tab
+  if close_mapping and close_mapping.lhs then
+    vim.keymap.set("n", close_mapping.lhs, function()
+      pcall(vim.api.nvim_win_close, winid, true)
+    end, { buffer = bufnr, silent = true, noremap = true, desc = close_mapping.desc or "Close window" })
+  end
+  
+  vim.cmd [[normal gg]]
+end
+
+---Parse the action from the submit buffer and submit the review
+function Review:submit_with_parsed_action()
+  local bufnr = vim.api.nvim_get_current_buf()
+  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+  
+  -- Parse the action from uncommented lines
+  local action = nil
+  local body_lines = {}
+  
+  for _, line in ipairs(lines) do
+    -- Check for uncommented action lines
+    if line:match("^Action:%s*Approve") then
+      if action then
+        utils.error "Multiple actions detected! Please uncomment only ONE action."
+        return
+      end
+      action = "APPROVE"
+    elseif line:match("^Action:%s*Comment") then
+      if action then
+        utils.error "Multiple actions detected! Please uncomment only ONE action."
+        return
+      end
+      action = "COMMENT"
+    elseif line:match("^Action:%s*Request%s+Changes") then
+      if action then
+        utils.error "Multiple actions detected! Please uncomment only ONE action."
+        return
+      end
+      action = "REQUEST_CHANGES"
+    -- Skip commented action lines and the instruction line
+    elseif not line:match("^%-%-%s*Action:") and not line:match("^%-%-%s*Uncomment") then
+      table.insert(body_lines, line)
+    end
+  end
+  
+  if not action then
+    utils.error "No action found! Please uncomment one of: Action: Approve, Action: Comment, or Action: Request Changes"
+    return
+  end
+  
+  -- Remove the action-related lines from body
+  -- Trim the body
+  local body = utils.trim(table.concat(body_lines, "\n"))
+  
+  -- Validate that APPROVE and REQUEST_CHANGES have a body (COMMENT can be empty)
+  if (action == "APPROVE" or action == "REQUEST_CHANGES") and utils.is_blank(body) then
+    local action_name = action == "APPROVE" and "Approve" or "Request Changes"
+    utils.error(string.format("%s reviews require a comment body", action_name))
+    return
+  end
+  
+  -- Submit the review
+  self:submit(action, body)
 end
 
 ---@param event "APPROVE" | "COMMENT" | "REQUEST_CHANGES"
-function Review:submit(event)
+---@param body string?
+function Review:submit(event, body)
   local review_id = self.id
   if review_id == -1 then
     utils.error "No review in progress"
@@ -360,8 +436,15 @@ function Review:submit(event)
   review_id = review_id --[[@as string]]
   local bufnr = vim.api.nvim_get_current_buf()
   local winid = vim.api.nvim_get_current_win()
-  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, default_id, false)
-  local body = utils.escape_char(utils.trim(table.concat(lines, "\n")))
+  
+  -- If body is not provided, read it from the buffer (for old hotkey behavior)
+  if not body then
+    local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+    body = utils.escape_char(utils.trim(table.concat(lines, "\n")))
+  else
+    body = utils.escape_char(body)
+  end
+  
   local query = graphql("submit_pull_request_review_mutation", review_id, event, body, { escape = false })
   gh.api.graphql {
     f = { query = query },
