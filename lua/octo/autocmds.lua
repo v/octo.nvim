@@ -63,15 +63,6 @@ function M.setup()
       require("octo").on_cursor_hold()
     end,
   })
-  if config.values.reviews.auto_show_threads then
-    define({ "CursorMoved" }, {
-      group = "octo_autocmds",
-      pattern = { "*" },
-      callback = function()
-        require("octo.reviews.thread-panel").show_review_threads(false)
-      end,
-    })
-  end
   define({ "TabClosed" }, {
     group = "octo_autocmds",
     pattern = { "*" },

@@ -496,6 +496,7 @@ function M.get_default_values()
         toggle_files = { lhs = "<localleader>b", desc = "hide/show changed files panel" },
         next_thread = { lhs = "]t", desc = "move to next thread" },
         prev_thread = { lhs = "[t", desc = "move to previous thread" },
+        show_threads = { lhs = "<CR>", desc = "show review threads in floating window" },
         select_next_entry = { lhs = "]q", desc = "move to next changed file" },
         select_prev_entry = { lhs = "[q", desc = "move to previous changed file" },
         select_first_entry = { lhs = "[Q", desc = "move to first changed file" },

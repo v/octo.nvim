@@ -471,15 +471,14 @@ function FileEntry:place_signs()
             signs.place(sign, split.bufnr, line - 1)
           end
 
-          -- place the virtual text only on first line
+          -- place the virtual line only on first line
           local last_date = comment.lastEditedAt ~= vim.NIL and comment.lastEditedAt or comment.createdAt
           local comments_count = #thread.comments.nodes
           local comments_word = comments_count == 1 and "comment" or "comments"
           local vt_msg = string.format("    %d %s (%s)", comments_count, comments_word, utils.format_date(last_date))
           --vim.api.nvim_buf_set_virtual_text(split.bufnr, -1, startLine - 1, { { vt_msg, "Comment" } }, {})
           local opts = {
-            virt_text = { { vt_msg, "Comment" } },
-            virt_text_pos = "right_align",
+            virt_lines = { { { vt_msg, "Comment" } } },
             -- adding the extmark below can fail if we are in the `COMMIT` review level and the commit contains thread comments
             -- that is why we set strict to `false` here to ignore this possible error
             strict = false,

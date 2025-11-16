@@ -437,6 +437,9 @@ return {
   prev_thread = function()
     require("octo.reviews.file-panel").prev_thread()
   end,
+  show_threads = function()
+    require("octo.reviews.thread-panel").show_review_threads(true)
+  end,
   select_next_entry = function()
     local layout = reviews.get_current_layout()
     if layout then
