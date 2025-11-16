@@ -564,15 +564,12 @@ function Review:add_comment(isSuggestion)
       },
     }
 
-    -- Make sure review thread panel is visible if not already
-    -- The thread panel could be hidden if user has `reviews.auto_show_threads` set to false in their config
-    -- or, less likely, if the add comment command is invoked before the autocmd has concluded,
-    thread_panel.show_review_threads(false)
+    -- Create the thread buffer
     local thread_buffer = thread_panel.create_thread_buffer(threads, pr.repo, pr.number, split, file.path)
     if thread_buffer then
       table.insert(file.associated_bufs, thread_buffer.bufnr)
-      vim.api.nvim_win_set_buf(alt_win, thread_buffer.bufnr)
-      vim.api.nvim_set_current_win(alt_win)
+      
+      -- Add suggestion content if this is a suggestion
       if isSuggestion then
         local lines = vim.api.nvim_buf_get_lines(current_bufnr, line1 - 1, line2 --[[@as integer]], false)
         local suggestion = { "```suggestion" }
@@ -581,18 +578,29 @@ function Review:add_comment(isSuggestion)
         vim.api.nvim_buf_set_lines(thread_buffer.bufnr, -3, -2, false, suggestion)
         vim.bo[thread_buffer.bufnr].modified = false
       end
+      
       thread_buffer:configure()
-      vim.cmd [[diffoff!]]
-      vim.cmd [[normal! vvGk]]
-      vim.cmd [[startinsert]]
+      
+      -- Create floating window with 80% width and height
+      local winid, outer_winid = thread_panel.create_floating_thread_window(thread_buffer.bufnr)
+      
+      -- Store the float info
+      thread_panel.current_float.winid = winid
+      thread_panel.current_float.outer_winid = outer_winid
+      thread_panel.current_float.bufnr = thread_buffer.bufnr
+      thread_panel.current_float.line = line1
 
+      -- Set up keymaps for the floating window
       vim.keymap.set("n", "q", function()
-        thread_panel.hide_thread_buffer(split, file)
-        local file_win = file:get_win(split)
-        if vim.api.nvim_win_is_valid(file_win) then
-          vim.api.nvim_set_current_win(file_win)
-        end
-      end, { buffer = thread_buffer.bufnr })
+        thread_panel.close_floating_thread_window()
+      end, { buffer = thread_buffer.bufnr, silent = true, noremap = true })
+      
+      -- Configure the buffer and start insert mode
+      vim.api.nvim_buf_call(thread_buffer.bufnr, function()
+        vim.cmd [[diffoff!]]
+        vim.cmd [[normal! vvGk]]
+        vim.cmd [[startinsert]]
+      end)
     end
   else
     utils.error("Cannot find diff window " .. alt_win)
