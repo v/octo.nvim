@@ -132,6 +132,16 @@ function M.close_floating_thread_window()
   if M.current_float.outer_winid and vim.api.nvim_win_is_valid(M.current_float.outer_winid) then
     pcall(vim.api.nvim_win_close, M.current_float.outer_winid, true)
   end
+  
+  -- Restore diff mode for the file buffers
+  local review = require("octo.reviews").get_current_review()
+  if review then
+    local file = review.layout:get_current_file()
+    if file then
+      file:show_diff()
+    end
+  end
+  
   M.current_float.winid = nil
   M.current_float.outer_winid = nil
   M.current_float.bufnr = nil
