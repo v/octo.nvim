@@ -313,7 +313,9 @@ function FileEntry:load_buffers(left_winid, right_winid)
   for _, split in ipairs(splits) do
     if not split.bufid or not vim.api.nvim_buf_is_loaded(split.bufid) then
       local conf = config.values
-      local use_local = conf.use_local_fs and split.pos == "right" and utils.in_pr_branch(self.pull_request)
+      local current_review = require("octo.reviews").get_current_review()
+      local want_local = (current_review and current_review.local_fs) or conf.use_local_fs
+      local use_local = want_local and split.pos == "right" and utils.in_pr_branch(self.pull_request)
 
       -- create buffer
       split.bufid = M._create_buffer {

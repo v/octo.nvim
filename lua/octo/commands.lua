@@ -793,8 +793,14 @@ function M.setup()
       browse = function()
         reviews.browse_review()
       end,
-      start = function()
-        reviews.start_review()
+      start = function(...)
+        local local_fs = false
+        for _, arg in ipairs { ... } do
+          if arg == "--local" then
+            local_fs = true
+          end
+        end
+        reviews.start_review { local_fs = local_fs }
       end,
       resume = function()
         reviews.resume_review()

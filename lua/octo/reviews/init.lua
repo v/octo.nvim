@@ -19,6 +19,7 @@ local ReviewThread = require("octo.reviews.thread").ReviewThread
 ---@field files FileEntry[]
 ---@field layout Layout
 ---@field pull_request PullRequest
+---@field local_fs boolean
 local Review = {}
 Review.__index = Review
 
@@ -26,13 +27,16 @@ local default_id = -1
 
 ---Review constructor.
 ---@param pull_request PullRequest
+---@param opts? { local_fs?: boolean }
 ---@return Review
-function Review:new(pull_request)
+function Review:new(pull_request, opts)
+  opts = opts or {}
   local this = {
     pull_request = pull_request,
     id = default_id,
     threads = {},
     files = {},
+    local_fs = opts.local_fs or false,
   }
   setmetatable(this, self)
   return this
@@ -211,7 +215,7 @@ function Review:initiate(opts)
   opts = opts or {}
   local pr = self.pull_request
   local conf = config.values
-  if conf.use_local_fs and not utils.in_pr_branch(pr) then
+  if (self.local_fs or conf.use_local_fs) and not utils.in_pr_branch(pr) then
     local choice = vim.fn.confirm("Currently not in PR branch, would you like to checkout?", "&Yes\n&No", 2)
     if choice == 1 then
       utils.checkout_pr_sync { repo = pr.repo, pr_number = pr.number }
@@ -750,16 +754,19 @@ function M.browse_review()
   end)
 end
 
-function M.start_review()
+---@param opts? { local_fs?: boolean }
+function M.start_review(opts)
+  opts = opts or {}
   -- its possible we are already browsing a review with 'Octo review browse'
   local current_review = M.get_current_review()
   if current_review then
+    current_review.local_fs = opts.local_fs or current_review.local_fs
     current_review:start()
     return
   end
 
   get_pr_from_buffer_or_current_branch(function(pull_request)
-    current_review = Review:new(pull_request)
+    current_review = Review:new(pull_request, opts)
     current_review:start()
   end)
 end
