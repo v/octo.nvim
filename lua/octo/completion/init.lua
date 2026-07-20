@@ -39,7 +39,7 @@ function M.octo_command_complete(argLead, cmdLine)
     if type(obj) == "table" and not search then
       return get_options(vim.tbl_keys(obj))
     end
-  elseif #parts == 4 and parts[2] == "review" and parts[3] == "start" then
+  elseif #parts == 4 and parts[2] == "review" and (parts[3] == "start" or parts[3] == "resume") then
     return get_options { "--local" }
   end
 end

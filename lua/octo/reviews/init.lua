@@ -771,9 +771,10 @@ function M.start_review(opts)
   end)
 end
 
-function M.resume_review()
+---@param opts? { local_fs?: boolean }
+function M.resume_review(opts)
   get_pr_from_buffer_or_current_branch(function(pull_request)
-    local current_review = Review:new(pull_request)
+    local current_review = Review:new(pull_request, opts)
     current_review:resume()
   end)
 end

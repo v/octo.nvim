@@ -92,6 +92,18 @@ local function update_subscription(subscribable_id, current_subscription, displa
   end)
 end
 
+---@param ... string
+---@return { local_fs: boolean }
+local function parse_review_opts(...)
+  local opts = { local_fs = false }
+  for _, arg in ipairs { ... } do
+    if arg == "--local" then
+      opts.local_fs = true
+    end
+  end
+  return opts
+end
+
 function M.setup()
   vim.api.nvim_create_user_command("Octo", function(opts)
     OctoLastCmdOpts = opts
@@ -794,16 +806,10 @@ function M.setup()
         reviews.browse_review()
       end,
       start = function(...)
-        local local_fs = false
-        for _, arg in ipairs { ... } do
-          if arg == "--local" then
-            local_fs = true
-          end
-        end
-        reviews.start_review { local_fs = local_fs }
+        reviews.start_review(parse_review_opts(...))
       end,
-      resume = function()
-        reviews.resume_review()
+      resume = function(...)
+        reviews.resume_review(parse_review_opts(...))
       end,
       comments = context.within_review(function(current_review)
         current_review:show_pending_comments()
