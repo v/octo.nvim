@@ -119,6 +119,47 @@ function M.create_centered_float(opts)
   return winid, bufnr
 end
 
+-- Restored after upstream #1403 removed it; the fork's floating review-thread
+-- window (reviews/thread-panel.lua) is built on this two-float API.
+function M.create_border_header_float(opts)
+  local outer_winid, outer_bufnr
+  outer_bufnr = vim.api.nvim_create_buf(false, true)
+  local outer = {}
+  local line_fill = string.rep("─", opts.width - 2 * opts.border_width)
+  table.insert(outer, string.format("┌%s┐", line_fill))
+  if opts.header then
+    local trimmed_header = string.sub(opts.header, 1, opts.width - 2 * opts.border_width - 2 * opts.padding)
+    local fill =
+      string.rep(" ", opts.width - 2 * opts.padding - 2 * opts.border_width - vim.fn.strdisplaywidth(trimmed_header))
+    table.insert(outer, string.format("│ %s%s │", trimmed_header, fill))
+    table.insert(outer, string.format("├%s┤", line_fill))
+    for _ = 1, opts.height - 2 * opts.border_width - 2 * opts.header_height do
+      table.insert(outer, string.format("│%s│", string.rep(" ", opts.width - 2 * opts.border_width)))
+    end
+  else
+    for _ = 1, opts.height - 2 * opts.border_width do
+      table.insert(outer, string.format("│%s│", line_fill))
+    end
+  end
+  table.insert(outer, string.format("└%s┘", line_fill))
+  vim.api.nvim_buf_set_lines(outer_bufnr, 0, -1, false, outer)
+  outer_winid = vim.api.nvim_open_win(outer_bufnr, false, {
+    relative = "editor",
+    row = opts.y_offset,
+    col = opts.x_offset,
+    width = opts.width,
+    height = opts.height,
+    focusable = false,
+  })
+  vim.bo[outer_bufnr].modifiable = false
+  vim.wo[outer_winid].foldcolumn = "0"
+  vim.wo[outer_winid].signcolumn = "no"
+  vim.wo[outer_winid].number = false
+  vim.wo[outer_winid].relativenumber = false
+  vim.wo[outer_winid].cursorline = false
+  return outer_winid
+end
+
 ---@param ... integer
 function M.try_close_wins(...)
   for _, win_id in ipairs { ... } do
